@@ -1,6 +1,6 @@
 {
   "name": "@ialac/s3-utils",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Using npm: ```shell $ npm ci $ npm run li:path:add # This will make avaiable li command everywhere by adding it tou your PATH",
   "main": "index.js",
   "scripts": {
