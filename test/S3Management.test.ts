@@ -7,12 +7,14 @@ import {
   s3FileExists,
   getHeadObjectFromS3,
   getEnvConfig,
+  getSHA1OfObject,
 } from "../src/S3Management";
 import { S3Client, type _Object, type S3ClientConfig } from "@aws-sdk/client-s3";
 import { createS3Client } from "mock-aws-s3-v3";
 import fs from "fs";
 import { finished } from "stream/promises";
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
+import { createHash } from "crypto";
 
 describe("getS3Client(config?)", () => {
   it("Should fail because config is undefined and the client is not set", () => {
@@ -71,10 +73,8 @@ describe("getFileFromS3(bucket, key, s3Client?)", () => {
   beforeEach(resetS3Client);
 
   it("Should fail because s3Client is not set", async () => {
-    const file = fs.readFileSync("test/test.xml");
-
     await expect(
-      getFileFromS3("dev", "get_test/test.xml", file),
+      getFileFromS3("dev", "get_test/test.xml"),
     ).rejects.toThrow();
   });
 
@@ -231,3 +231,43 @@ describe("getEnvConfig()", () => {
     expect(getEnvConfig).toThrow("Missing environment variable S3_ACCESS_KEY");
   })
 })
+
+describe("getSHA1OfObject(bucket, key, s3Client?)", () => {
+  beforeEach(resetS3Client);
+
+  it("Should fail because s3Client is not set", async () => {
+    await expect(
+      getSHA1OfObject("dev", "get_test/test.xml"),
+    ).rejects.toThrow();
+  });
+
+  it("Should return the SHA1 of an existing object", async () => {
+    const mockClient = createS3Client({
+      localDirectory: "./test/s3_mock",
+      bucket: "dev",
+    });
+
+    const expected = createHash("sha1")
+      .update(fs.readFileSync("test/s3_mock/dev/get_test/test.xml"))
+      .digest("hex");
+
+    const sha1 = await getSHA1OfObject(
+      "dev",
+      "get_test/test.xml",
+      mockClient,
+    );
+
+    expect(sha1).toBe(expected);
+  });
+
+  it("Should throw an error for a non-existing object", async () => {
+    const mockClient = createS3Client({
+      localDirectory: "./test/s3_mock",
+      bucket: "dev",
+    });
+
+    await expect(
+      getSHA1OfObject("dev", "get_test/does_not_exist.xml", mockClient),
+    ).rejects.toThrow();
+  });
+});

@@ -4,8 +4,8 @@ import {
   GetObjectCommand,
   ListObjectsV2Command,
   HeadObjectCommand,
-  type S3ClientConfig,
 } from "@aws-sdk/client-s3";
+import { createHash } from "crypto";
 import { Readable } from "stream";
 
 let s3Client: S3Client | undefined;
@@ -29,7 +29,7 @@ export function getS3Client(config?: { endpoint: string, credentials: { accessKe
   return s3Client;
 }
 
-export async function putFileToS3(bucket: string, key: string, file: File, s3Client?: S3Client) {
+export async function putFileToS3(bucket: string, key: string, file: Buffer<ArrayBuffer>, s3Client?: S3Client) {
   s3Client ??= getS3Client();
   await s3Client.send(
     new PutObjectCommand({
@@ -115,4 +115,13 @@ export function getEnvConfig() {
     throw new Error("Missing environment variable S3_ACCESS_KEY");
   }
   return { endpoint: process.env.S3_ENDPOINT, credentials: { accessKeyId: process.env.S3_KEY_ID, secretAccessKey: process.env.S3_ACCESS_KEY } };
+}
+
+export async function getSHA1OfObject(bucket: string, key: string, s3Client?: S3Client) {
+  const obj = await getFileFromS3(bucket, key, s3Client);
+  const buffer = await obj?.transformToByteArray()
+  if (buffer === undefined) {
+    throw new Error("Buffer was undefined");
+  }
+  return createHash("sha1").update(buffer).digest("hex");
 }
