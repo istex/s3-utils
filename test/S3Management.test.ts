@@ -1,4 +1,3 @@
-import expect from "expect.js";
 import {
   getS3Client,
   putFileToS3,
@@ -7,16 +6,18 @@ import {
   getListObjectsFromS3,
   s3FileExists,
   getHeadObjectFromS3,
-} from "../src/S3Management.ts";
-import { S3Client } from "@aws-sdk/client-s3";
+} from "../src/S3Management";
+import { S3Client, type _Object } from "@aws-sdk/client-s3";
 import { createS3Client } from "mock-aws-s3-v3";
 import fs from "fs";
 import { finished } from "stream/promises";
+import { describe, it, expect, beforeEach, afterAll } from "vitest";
 
 describe("getS3Client(config?)", () => {
   it("Should fail because config is undefined and the client is not set", () => {
-    expect(getS3Client).to.throwError();
+    expect(() => getS3Client()).toThrow();
   });
+
   it("Should return an instance of an S3Client", () => {
     const config = {
       endpoint: "http://0.0.0.0:9000",
@@ -25,111 +26,127 @@ describe("getS3Client(config?)", () => {
         secretAccessKey: "devpasswd",
       },
     };
-    expect(getS3Client(config) instanceof S3Client).to.be(true);
+
+    expect(getS3Client(config) instanceof S3Client).toBe(true);
   });
+
   it("Should return an instance of the S3Client even with undefined config", () => {
-    expect(getS3Client() instanceof S3Client).to.be(true);
+    expect(getS3Client() instanceof S3Client).toBe(true);
   });
 });
 
 describe("putFileToS3(bucket, key, file, s3Client?)", () => {
-  before(resetS3Client);
-  after(() => {
-    // Remove test files
+  beforeEach(resetS3Client);
+
+  afterAll(() => {
     fs.rm("test/s3_mock/dev/put_test", { recursive: true }, (err) => {
-      if (err) console.error(err);
+      if (err != null) console.error(err);
     });
   });
+
   it("Should fail because s3Client is not set", async () => {
     const file = fs.readFileSync("test/test.xml");
 
-    let thrown = false;
-    try {
-      await putFileToS3("dev", "put_test/test.xml", file);
-    } catch {
-      thrown = true;
-    }
-    expect(thrown).to.be(true);
+    await expect(
+      putFileToS3("dev", "put_test/test.xml", file),
+    ).rejects.toThrow();
   });
+
   const mockClient = createS3Client({
     localDirectory: "./test/s3_mock",
     bucket: "dev",
   });
+
   it("Should write the file in S3 (test/s3_mock) successfully", async () => {
     const file = fs.readFileSync("test/test.xml");
+
     await putFileToS3("dev", "put_test/test.xml", file, mockClient);
-    expect(!!fs.readFileSync("test/s3_mock/dev/put_test/test.xml")).to.be(true);
+
+    fs.readFileSync("test/s3_mock/dev/put_test/test.xml");
   });
 });
 
 describe("getFileFromS3(bucket, key, s3Client?)", () => {
-  before(resetS3Client);
+  beforeEach(resetS3Client);
+
   it("Should fail because s3Client is not set", async () => {
     const file = fs.readFileSync("test/test.xml");
 
-    let thrown = false;
-    try {
-      await getFileFromS3("dev", "get_test/test.xml", file);
-    } catch (err) {
-      thrown = true;
-    }
-    expect(thrown).to.be(true);
+    await expect(
+      getFileFromS3("dev", "get_test/test.xml", file),
+    ).rejects.toThrow();
   });
+
   it("Should get the file from S3 (test/mock) successfully", async () => {
     const mockClient = createS3Client({
       localDirectory: "./test/s3_mock",
       bucket: "dev",
     });
+
     const s3File = await getFileFromS3("dev", "get_test/test.xml", mockClient);
-    expect(await s3File.transformToString()).to.be(
+    expect(s3File).not.toBeUndefined();
+
+    expect(await s3File?.transformToString()).toBe(
       fs.readFileSync("test/s3_mock/dev/get_test/test.xml").toString(),
     );
   });
 });
 
 describe("getListObjectsFromS3(bucket, prefix, s3Client?)", () => {
-  before(resetS3Client);
+  beforeEach(resetS3Client);
+
   it("Should get the list of files from S3 (50 subfolders with 1 XML file and 1 PDF file each))", async () => {
     const mockClient = createS3Client({
       localDirectory: "./test/s3_mock",
       bucket: "dev",
     });
+
     const streamNoMaxKeys = getListObjectsFromS3(
       "dev",
       "get_list_object_test",
-      { delimiter: "arbitrary delimiter", maxKeys: null, s3Client: mockClient },
+      { delimiter: "arbitrary delimiter", s3Client: mockClient },
     );
 
-    const objectsNoMaxKeys = [];
-    streamNoMaxKeys.on("data", (data) => {
+    const objectsNoMaxKeys: _Object[] = [];
+    streamNoMaxKeys.on("data", (data: _Object) => {
       objectsNoMaxKeys.push(data);
     });
+
     await finished(streamNoMaxKeys);
 
-    const streamMaxKeys = getListObjectsFromS3("dev", "get_list_object_test", {
-      delimiter: "arbitrary delimiter",
-      maxKeys: 2,
-      s3Client: mockClient,
-    });
+    const streamMaxKeys = getListObjectsFromS3(
+      "dev",
+      "get_list_object_test",
+      {
+        delimiter: "arbitrary delimiter",
+        maxKeys: 2,
+        s3Client: mockClient,
+      },
+    );
 
-    const objectsMaxKeys = [];
-    streamMaxKeys.on("data", (data) => {
+    const objectsMaxKeys: _Object[] = [];
+    streamMaxKeys.on("data", (data: _Object) => {
       objectsMaxKeys.push(data);
     });
+
     await finished(streamMaxKeys);
 
-    expect(objectsMaxKeys).eql(objectsNoMaxKeys);
-    expect(objectsNoMaxKeys.length).to.be(100);
+    expect(objectsMaxKeys).toEqual(objectsNoMaxKeys);
+    expect(objectsNoMaxKeys.length).toBe(100);
+
     expect(
-      objectsNoMaxKeys.filter((o) => o.Key.toString().endsWith(".pdf")).length,
-    ).to.be(50);
+      objectsNoMaxKeys.filter((o) => o.Key?.toString().endsWith(".pdf") === true).length,
+    ).toBe(50);
+
     expect(
-      objectsNoMaxKeys.filter((o) => o.Key.toString().endsWith(".xml")).length,
-    ).to.be(50);
+      objectsNoMaxKeys.filter((o) => o.Key?.toString().endsWith(".xml") === true).length,
+    ).toBe(50);
+
     expect(
-      objectsNoMaxKeys.filter((o) => o.Key.toString().includes("33/file33.pdf"))
-        .length,
-    ).to.be(1);
+      objectsNoMaxKeys.filter((o) =>
+        o.Key?.toString().includes("33/file33.pdf") === true,
+      ).length,
+    ).toBe(1);
   });
 });
 
@@ -140,21 +157,24 @@ describe("s3FileExists(bucket, key)", () => {
   });
 
   it("Should return true for an existing file", async () => {
-    expect(await s3FileExists("dev", "get_test/test.xml", mockClient)).to.be(
+    expect(await s3FileExists("dev", "get_test/test.xml", mockClient)).toBe(
       true,
     );
   });
+
   it("Should return false for a non existing file", async () => {
-    expect(await s3FileExists("dev", "get_test/bana.na", mockClient)).to.be(
+    expect(await s3FileExists("dev", "get_test/bana.na", mockClient)).toBe(
       false,
     );
+
     const mockClient2 = createS3Client({
       localDirectory: "s3_mock",
       bucket: "banana",
     });
-    expect(await s3FileExists("banana", "banana/bana.na", mockClient2)).to.be(
-      false,
-    );
+
+    expect(
+      await s3FileExists("banana", "banana/bana.na", mockClient2),
+    ).toBe(false);
   });
 });
 
@@ -163,23 +183,21 @@ describe("getHeadObjectFromS3(bucket, key, s3Client?)", () => {
     localDirectory: "./test/s3_mock",
     bucket: "dev",
   });
+
   it("Should return HeadObject of the existing file", async () => {
     const res = await getHeadObjectFromS3(
       "dev",
       "get_test/test.xml",
       mockClient,
     );
-    expect(res).to.not.be(undefined);
-    expect(res.Key).to.be("get_test/test.xml");
-    expect(res.ContentLength).to.be(4542);
+
+    expect(res).not.toBeUndefined();
+    expect(res.ContentLength).toBe(4542);
   });
+
   it("Should throw an error trying to fetch the head of a non-existing object", async () => {
-    let thrown = false;
-    try {
-      await getHeadObjectFromS3("dev", "put_test/test.xml", mockClient);
-    } catch {
-      thrown = true;
-    }
-    expect(thrown).to.be(true);
+    await expect(
+      getHeadObjectFromS3("dev", "put_test/test.xml", mockClient),
+    ).rejects.toThrow();
   });
 });
