@@ -8,7 +8,7 @@ import {
   getHeadObjectFromS3,
   getEnvConfig,
   getSHA1OfObject,
-} from "../src/index";
+} from "../src/index.js";
 import { S3Client, type _Object, type S3ClientConfig } from "@aws-sdk/client-s3";
 import { createS3Client } from "mock-aws-s3-v3";
 import fs from "fs";
