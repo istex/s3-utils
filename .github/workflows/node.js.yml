@@ -16,10 +16,22 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: Use Node.js 24
+    - name: Check if the project builds correctly
       uses: actions/setup-node@v4
       with:
         node-version: 24
         cache: 'npm'
-    - run: npm install --include=dev
+    - run: npm ci
+
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Check code coverage
+      uses: actions/setup-node@v4
+      with:
+        node-version: 24
+        cache: 'npm'
+    - run: npm ci
     - run: npm run test:coverage

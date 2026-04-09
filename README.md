@@ -95,3 +95,48 @@ Paramètres:
 | key | Clé du fichier à récupérer (arborescence + nom de fichier) |
 | s3Client? | Client S3 (optionnel) |
 </details>
+
+<details>
+<summary><strong>async getSHA1OfObject(bucket, key, s3Client?)</strong></summary>
+
+Récupère et retourne le checksum SHA1 d'un fichier du stockage S3 dans le bucket avec la clé référencée. Si aucun client S3 n'est rérérencé, la valeur par défaut est le résultat de la fonction `getS3Client` sans objet de configuration.
+
+Note: Si le client n'a pas été instancié avant l'appel de cette fonction, et qu'aucun client n'est en paramètre de la fonction, celle-ci renvoie une erreur.
+
+Paramètres:
+| Paramètre | Description |
+| --- | --- |
+| bucket | Nom du bucket dans lequel la fonction va chercher le fichier |
+| key | Clé du fichier à récupérer (arborescence + nom de fichier) |
+| s3Client? | Client S3 (optionnel) |
+</details>
+
+<details>
+<summary><strong>getEnvConfig()</strong></summary>
+
+Retourne une configuration de client S3 basée sur les variables d'environement correspondantes.
+Le type de l'objet est :
+```typescript
+{
+  endpoint: string, // url du stockage S3
+  credentials: {
+    accessKeyId: string, // ID de la clé API S3 (ou nom d'utilisateur)
+    secretAccessKey: string, // Clé secrète de l'API S3 (ou mot de passe)
+  }
+}
+```
+
+Les variables d'environement utilisées sont : 
+| Variable d'environement | Valeur correspondante | Description | Exemple |
+| --- | --- | --- | --- |
+| `S3_ENDPOINT` | `endpoint` | Url du stockage S3 | `http://localhost:9000` |
+| `S3_KEY_ID` | `accessKeyId` | ID de la clé API S3 (ou nom d'utilisateur | dev |
+| `S3_ACCESS_KEY` | `secretAccessKey` | Clé secrète de l'API S3 (ou mot de passe) | 
+
+Paramètres:
+| Paramètre | Description |
+| --- | --- |
+| bucket | Nom du bucket dans lequel la fonction va chercher le fichier |
+| key | Clé du fichier à récupérer (arborescence + nom de fichier) |
+| s3Client? | Client S3 (optionnel) |
+</details>
