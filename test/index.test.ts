@@ -1,7 +1,7 @@
 import {
   getS3Client,
-  putFileToS3,
-  getFileFromS3,
+  putObjectToS3,
+  getObjectFromS3,
   resetS3Client,
   getListObjectsFromS3,
   s3FileExists,
@@ -51,7 +51,7 @@ describe("putFileToS3(bucket, key, file, s3Client?)", () => {
     const file = fs.readFileSync("test/test.xml");
 
     await expect(
-      putFileToS3("dev", "put_test/test.xml", file),
+      putObjectToS3("dev", "put_test/test.xml", file),
     ).rejects.toThrow();
   });
 
@@ -63,7 +63,7 @@ describe("putFileToS3(bucket, key, file, s3Client?)", () => {
   it("Should write the file in S3 (test/s3_mock) successfully", async () => {
     const file = fs.readFileSync("test/test.xml");
 
-    await putFileToS3("dev", "put_test/test.xml", file, mockClient);
+    await putObjectToS3("dev", "put_test/test.xml", file, mockClient);
 
     fs.readFileSync("test/s3_mock/dev/put_test/test.xml");
   });
@@ -74,7 +74,7 @@ describe("getFileFromS3(bucket, key, s3Client?)", () => {
 
   it("Should fail because s3Client is not set", async () => {
     await expect(
-      getFileFromS3("dev", "get_test/test.xml"),
+      getObjectFromS3("dev", "get_test/test.xml"),
     ).rejects.toThrow();
   });
 
@@ -84,10 +84,10 @@ describe("getFileFromS3(bucket, key, s3Client?)", () => {
       bucket: "dev",
     });
 
-    const s3File = await getFileFromS3("dev", "get_test/test.xml", mockClient);
+    const s3File = await getObjectFromS3("dev", "get_test/test.xml", mockClient);
     expect(s3File).not.toBeUndefined();
 
-    expect(await s3File?.transformToString()).toBe(
+    expect(await s3File.Body?.transformToString()).toBe(
       fs.readFileSync("test/s3_mock/dev/get_test/test.xml").toString(),
     );
   });

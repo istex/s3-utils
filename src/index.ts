@@ -29,7 +29,7 @@ export function getS3Client(config?: { endpoint: string, credentials: { accessKe
   return s3Client;
 }
 
-export async function putFileToS3(bucket: string, key: string, file: Buffer<ArrayBuffer>, s3Client?: S3Client) {
+export async function putObjectToS3(bucket: string, key: string, file: Buffer<ArrayBuffer>, s3Client?: S3Client) {
   s3Client ??= getS3Client();
   await s3Client.send(
     new PutObjectCommand({
@@ -40,7 +40,7 @@ export async function putFileToS3(bucket: string, key: string, file: Buffer<Arra
   )
 }
 
-export async function getFileFromS3(bucket: string, key: string, s3Client?: S3Client) {
+export async function getObjectFromS3(bucket: string, key: string, s3Client?: S3Client) {
   s3Client ??= getS3Client();
   const response = await s3Client.send(
     new GetObjectCommand({
@@ -48,7 +48,7 @@ export async function getFileFromS3(bucket: string, key: string, s3Client?: S3Cl
       Key: key
     })
   );
-  return response.Body;
+  return response;
 }
 
 export async function* listObjectsGenerator(bucket: string, prefix: string, options?: { maxKeys?: number, delimiter?: string, s3Client?: S3Client }) {
@@ -118,8 +118,8 @@ export function getEnvConfig() {
 }
 
 export async function getSHA1OfObject(bucket: string, key: string, s3Client?: S3Client) {
-  const obj = await getFileFromS3(bucket, key, s3Client);
-  const buffer = await obj?.transformToByteArray()
+  const obj = await getObjectFromS3(bucket, key, s3Client);
+  const buffer = await obj.Body?.transformToByteArray()
   if (buffer === undefined) {
     throw new Error("Buffer was undefined");
   }
