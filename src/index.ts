@@ -8,9 +8,7 @@ import {
 import { createHash } from "crypto";
 import { Readable } from "stream";
 
-let s3Client: S3Client | undefined;
-
-function initS3Client(config: { endpoint: string, credentials: { accessKeyId: string, secretAccessKey: string } }) {
+export function getS3Client(config: { endpoint: string, credentials: { accessKeyId: string, secretAccessKey: string } }) {
   return new S3Client({
     endpoint: config.endpoint,
     credentials: config.credentials,
@@ -19,18 +17,7 @@ function initS3Client(config: { endpoint: string, credentials: { accessKeyId: st
   })
 }
 
-export function getS3Client(config?: { endpoint: string, credentials: { accessKeyId: string, secretAccessKey: string } }) {
-  if (s3Client == null) {
-    if (config == null) {
-      throw new Error("S3 client cannot be created with empty configuration. Please consider calling the function with a correct config object.");
-    }
-    s3Client = initS3Client(config);
-  }
-  return s3Client;
-}
-
-export async function putObjectToS3(bucket: string, key: string, file: Buffer<ArrayBuffer>, s3Client?: S3Client) {
-  s3Client ??= getS3Client();
+export async function putObjectToS3(bucket: string, key: string, file: Buffer<ArrayBuffer>, s3Client: S3Client) {
   await s3Client.send(
     new PutObjectCommand({
       Bucket: bucket,
@@ -40,8 +27,7 @@ export async function putObjectToS3(bucket: string, key: string, file: Buffer<Ar
   )
 }
 
-export async function getObjectFromS3(bucket: string, key: string, s3Client?: S3Client) {
-  s3Client ??= getS3Client();
+export async function getObjectFromS3(bucket: string, key: string, s3Client: S3Client) {
   const response = await s3Client.send(
     new GetObjectCommand({
       Bucket: bucket,
@@ -51,8 +37,7 @@ export async function getObjectFromS3(bucket: string, key: string, s3Client?: S3
   return response;
 }
 
-export async function* listObjectsGenerator(bucket: string, prefix: string, options?: { maxKeys?: number, delimiter?: string, s3Client?: S3Client }) {
-  const s3Client = options?.s3Client ?? getS3Client();
+export async function* listObjectsGenerator(bucket: string, prefix: string, s3Client: S3Client, options?: { maxKeys?: number, delimiter?: string }) {
   let continuationToken: string | undefined;
 
   for (; ;) {
@@ -76,12 +61,11 @@ export async function* listObjectsGenerator(bucket: string, prefix: string, opti
   }
 }
 
-export function getListObjectsFromS3(bucket: string, prefix: string, options?: { maxKeys?: number, delimiter?: string, s3Client?: S3Client }) {
-  return Readable.from(listObjectsGenerator(bucket, prefix, options), { objectMode: true });
+export function getListObjectsFromS3(bucket: string, prefix: string, s3Client: S3Client, options?: { maxKeys?: number, delimiter?: string, }) {
+  return Readable.from(listObjectsGenerator(bucket, prefix, s3Client, options), { objectMode: true });
 }
 
-export async function s3FileExists(bucket: string, key: string, s3Client?: S3Client) {
-  s3Client ??= getS3Client();
+export async function s3FileExists(bucket: string, key: string, s3Client: S3Client) {
   try {
     await s3Client.send(
       new HeadObjectCommand({ Bucket: bucket, Key: key })
@@ -92,16 +76,19 @@ export async function s3FileExists(bucket: string, key: string, s3Client?: S3Cli
   }
 }
 
-export async function getHeadObjectFromS3(bucket: string, key: string, s3Client?: S3Client) {
-  s3Client ??= getS3Client();
+export async function getHeadObjectFromS3(bucket: string, key: string, s3Client: S3Client) {
   return await s3Client.send(
     new HeadObjectCommand({ Bucket: bucket, Key: key })
   );
 }
 
-// For tests
-export function resetS3Client() {
-  s3Client = undefined;
+export async function getSHA1OfObject(bucket: string, key: string, s3Client: S3Client) {
+  const obj = await getObjectFromS3(bucket, key, s3Client);
+  const buffer = await obj.Body?.transformToByteArray()
+  if (buffer === undefined) {
+    throw new Error("Buffer was undefined");
+  }
+  return createHash("sha1").update(buffer).digest("hex");
 }
 
 export function getEnvConfig() {
@@ -115,13 +102,4 @@ export function getEnvConfig() {
     throw new Error("Missing environment variable S3_ACCESS_KEY");
   }
   return { endpoint: process.env.S3_ENDPOINT, credentials: { accessKeyId: process.env.S3_KEY_ID, secretAccessKey: process.env.S3_ACCESS_KEY } };
-}
-
-export async function getSHA1OfObject(bucket: string, key: string, s3Client?: S3Client) {
-  const obj = await getObjectFromS3(bucket, key, s3Client);
-  const buffer = await obj.Body?.transformToByteArray()
-  if (buffer === undefined) {
-    throw new Error("Buffer was undefined");
-  }
-  return createHash("sha1").update(buffer).digest("hex");
 }

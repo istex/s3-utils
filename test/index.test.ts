@@ -2,7 +2,6 @@ import {
   getS3Client,
   putObjectToS3,
   getObjectFromS3,
-  resetS3Client,
   getListObjectsFromS3,
   s3FileExists,
   getHeadObjectFromS3,
@@ -13,46 +12,28 @@ import { S3Client, type _Object, type S3ClientConfig } from "@aws-sdk/client-s3"
 import { createS3Client } from "mock-aws-s3-v3";
 import fs from "fs";
 import { finished } from "stream/promises";
-import { describe, it, expect, beforeEach, afterAll } from "vitest";
+import { describe, it, expect, afterAll } from "vitest";
 import { createHash } from "crypto";
 
-describe("getS3Client(config?)", () => {
-  it("Should fail because config is undefined and the client is not set", () => {
-    expect(() => getS3Client()).toThrow();
-  });
+const config = {
+  endpoint: "http://0.0.0.0:9000",
+  credentials: {
+    accessKeyId: "dev",
+    secretAccessKey: "devpasswd",
+  },
+};
 
+describe("getS3Client(config)", () => {
   it("Should return an instance of an S3Client", () => {
-    const config = {
-      endpoint: "http://0.0.0.0:9000",
-      credentials: {
-        accessKeyId: "dev",
-        secretAccessKey: "devpasswd",
-      },
-    };
-
     expect(getS3Client(config) instanceof S3Client).toBe(true);
-  });
-
-  it("Should return an instance of the S3Client even with undefined config", () => {
-    expect(getS3Client() instanceof S3Client).toBe(true);
   });
 });
 
-describe("putFileToS3(bucket, key, file, s3Client?)", () => {
-  beforeEach(resetS3Client);
-
+describe("putFileToS3(bucket, key, file, s3Client)", () => {
   afterAll(() => {
     fs.rm("test/s3_mock/dev/put_test", { recursive: true }, (err) => {
       if (err != null) console.error(err);
     });
-  });
-
-  it("Should fail because s3Client is not set", async () => {
-    const file = fs.readFileSync("test/test.xml");
-
-    await expect(
-      putObjectToS3("dev", "put_test/test.xml", file),
-    ).rejects.toThrow();
   });
 
   const mockClient = createS3Client({
@@ -69,14 +50,7 @@ describe("putFileToS3(bucket, key, file, s3Client?)", () => {
   });
 });
 
-describe("getFileFromS3(bucket, key, s3Client?)", () => {
-  beforeEach(resetS3Client);
-
-  it("Should fail because s3Client is not set", async () => {
-    await expect(
-      getObjectFromS3("dev", "get_test/test.xml"),
-    ).rejects.toThrow();
-  });
+describe("getFileFromS3(bucket, key, s3Client)", () => {
 
   it("Should get the file from S3 (test/mock) successfully", async () => {
     const mockClient = createS3Client({
@@ -93,8 +67,7 @@ describe("getFileFromS3(bucket, key, s3Client?)", () => {
   });
 });
 
-describe("getListObjectsFromS3(bucket, prefix, s3Client?)", () => {
-  beforeEach(resetS3Client);
+describe("getListObjectsFromS3(bucket, prefix, s3Client)", () => {
 
   it("Should get the list of files from S3 (50 subfolders with 1 XML file and 1 PDF file each))", async () => {
     const mockClient = createS3Client({
@@ -104,8 +77,8 @@ describe("getListObjectsFromS3(bucket, prefix, s3Client?)", () => {
 
     const streamNoMaxKeys = getListObjectsFromS3(
       "dev",
-      "get_list_object_test",
-      { delimiter: "arbitrary delimiter", s3Client: mockClient },
+      "get_list_object_test", mockClient,
+      { delimiter: "arbitrary delimiter" },
     );
 
     const objectsNoMaxKeys: _Object[] = [];
@@ -118,10 +91,10 @@ describe("getListObjectsFromS3(bucket, prefix, s3Client?)", () => {
     const streamMaxKeys = getListObjectsFromS3(
       "dev",
       "get_list_object_test",
+      mockClient,
       {
         delimiter: "arbitrary delimiter",
         maxKeys: 2,
-        s3Client: mockClient,
       },
     );
 
@@ -151,7 +124,7 @@ describe("getListObjectsFromS3(bucket, prefix, s3Client?)", () => {
   });
 });
 
-describe("s3FileExists(bucket, key)", () => {
+describe("s3FileExists(bucket, key, s3Client)", () => {
   const mockClient = createS3Client({
     localDirectory: "./test/s3_mock",
     bucket: "dev",
@@ -179,7 +152,7 @@ describe("s3FileExists(bucket, key)", () => {
   });
 });
 
-describe("getHeadObjectFromS3(bucket, key, s3Client?)", () => {
+describe("getHeadObjectFromS3(bucket, key, s3Client)", () => {
   const mockClient = createS3Client({
     localDirectory: "./test/s3_mock",
     bucket: "dev",
@@ -232,14 +205,7 @@ describe("getEnvConfig()", () => {
   })
 })
 
-describe("getSHA1OfObject(bucket, key, s3Client?)", () => {
-  beforeEach(resetS3Client);
-
-  it("Should fail because s3Client is not set", async () => {
-    await expect(
-      getSHA1OfObject("dev", "get_test/test.xml"),
-    ).rejects.toThrow();
-  });
+describe("getSHA1OfObject(bucket, key, s3Client)", () => {
 
   it("Should return the SHA1 of an existing object", async () => {
     const mockClient = createS3Client({
